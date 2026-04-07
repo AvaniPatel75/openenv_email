@@ -1,0 +1,134 @@
+import asyncio, os, json, sys, re
+from pathlib import Path
+from typing import List, Dict, Any
+from openai import OpenAI
+
+ROOT = Path(__file__).resolve().parent
+# Ensure the repo root is on sys.path so we can import the `server` package.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from server.env import EmailTriageEnv
+from server.models import EmailAction
+
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "zephyr-7b-beta")
+API_KEY = os.getenv("HF_TOKEN")
+TASKS = os.getenv("TASKS", "classify,triage,respond").split(",")
+MAX_STEPS = int(os.getenv("MAX_STEPS", "4"))
+MAX_TOTAL_REWARD = MAX_STEPS 
+SUCCESS_SCORE_THRESHOLD = 0.6
+BENCHMARK = "email-triage"
+
+if not API_KEY:
+    raise SystemExit(
+        "HF_TOKEN is not set. Obtain a Hugging Face token and set it, e.g. "
+        "$env:HF_TOKEN='hf_xxxxxxxxx'"
+    )
+
+client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+
+SYSTEM_PROMPT = (
+    "You are an API client. Return only a JSON object for the next action. "
+    "Allowed keys: urgency, category, department, priority, requires_escalation, draft_reply. "
+    "No prose, no code fences."
+)
+
+
+def log_start(task: str, env: str, model: str):
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: Dict[str, Any] | None, reward: float, done: bool, error: str | None):
+    action_str = json.dumps(action, ensure_ascii=False) if action is not None else "null"
+    done_str = "true" if done else "false"
+    error_str = json.dumps(error) if error else "null"
+    print(f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_str} error={error_str}", flush=True)
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]):
+    rewards_str = json.dumps(rewards)
+    success_str = "true" if success else "false"
+    print(f"[END] success={success_str} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
+
+
+def parse_action(raw: str) -> EmailAction:
+    try:
+        return EmailAction(**json.loads(raw))
+    except Exception:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if m:
+            return EmailAction(**json.loads(m.group(0)))
+        raise
+
+
+async def run_task(task: str):
+    log_start(task=task, env=BENCHMARK, model=MODEL_NAME)
+    env = EmailTriageEnv(task)
+    obs = env.reset()
+    rewards: List[float] = []
+    steps_taken = 0
+
+    try:
+        for step in range(1, MAX_STEPS + 1):
+            if obs.done:
+                break
+
+            prompt = (
+                f"task: {task}\n"
+                f"email: {json.dumps(obs.current_email)}\n"
+                f"queue_status: {json.dumps(getattr(obs, 'queue_status', None))}\n"
+                "Return JSON action."
+            )
+
+            try:
+                resp = client.chat.completions.create(
+                    model=MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=256,
+                    stream=False,
+                )
+                content = (resp.choices[0].message.content or "").strip()
+                action = parse_action(content)
+                action_payload = action.model_dump(mode="json")
+            except Exception as exc:
+                log_step(step=step, action=None, reward=0.0, done=True, error=str(exc))
+                steps_taken = step
+                break
+
+            result = env.step(action)
+            obs = result.observation
+            reward = result.reward
+            done = result.done
+
+            rewards.append(reward)
+            steps_taken = step
+
+            log_step(step=step, action=action_payload, reward=reward, done=done, error=None)
+
+            if done:
+                break
+
+    finally:
+        max_reward = MAX_TOTAL_REWARD if MAX_TOTAL_REWARD > 0 else len(rewards)
+        score = sum(rewards) / max_reward if max_reward else 0.0
+        score = min(max(score, 0.0), 1.0)
+        success = score >= SUCCESS_SCORE_THRESHOLD
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+
+async def main():
+    for task in TASKS:
+        task = task.strip()
+        if not task:
+            continue
+        await run_task(task)
+        await asyncio.sleep(0)  
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Triage OpenEnv UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header"> 
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <div class="title">Email Triage OpenEnv</div>
+        <div class="subtitle">Classify · Triage · Respond</div>
+      </div>
+    </div>
+    <div class="status">
+      <span id="server-indicator" class="pill pill-off">Server Offline</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section>
+        <div class="section-title">Task Selector</div>
+        <div class="task-buttons">
+          <button class="chip" data-task="classify">Classify</button>
+          <button class="chip" data-task="triage">Triage</button>
+          <button class="chip" data-task="respond">Respond</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Live Score</div>
+        <div class="score-display">
+          <div class="score-value" id="score-value">—</div>
+          <div class="score-label">Latest Reward</div>
+        </div>
+        <div class="progress">
+          <div id="score-progress" class="progress-bar" style="width:0%"></div>
+        </div>
+        <div class="chips" id="step-history"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Episode State</div>
+        <div class="state-row"><span>Task</span><span id="state-task">—</span></div>
+        <div class="state-row"><span>Step</span><span id="state-step">0</span></div>
+        <div class="state-row"><span>Done</span><span id="state-done">—</span></div>
+        <div class="state-row"><span>Cumulative Reward</span><span id="state-reward">0.00</span></div>
+      </section>
+    </aside>
+
+    <section class="main">
+      <div id="done-banner" class="banner hidden">Episode Complete — Final Score <span id="final-score">0.00</span></div>
+
+      <section class="panel">
+        <div class="panel-title">Email Viewer</div>
+        <div id="email-viewer" class="email-viewer">Select a task to load emails.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Action Panel</div>
+        <div id="action-panel" class="action-panel">Choose a task to see actions.</div>
+        <div id="grading-result" class="grading-result"></div>
+      </section>
+    </section>
+  </main>
+
+  <template id="email-card-template">
+    <article class="email-card">
+      <div class="email-header">
+        <div class="email-subject"></div>
+        <span class="pill subtle"></span>
+      </div>
+      <div class="email-meta"></div>
+      <p class="email-body"></p>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+name: email-triage-env
+version: 1.0.0
+
+description: >
+  A real-world customer support email triage environment where agents must classify,
+  prioritize, route, and respond to emails. Designed for evaluating LLM agents on
+  structured decision-making and communication tasks.
+
+entrypoint:
+  api: server.app:app
+
+tags:
+  - openenv
+  - customer-support
+  - email
+  - triage
+  - llm-evaluation
+
+tasks:
+  - name: classify
+    description: Classify a single email into urgency, category, and department
+    difficulty: easy
+    max_steps: 5
+
+  - name: triage
+    description: Process a queue of emails with correct prioritization and routing
+    difficulty: medium
+    max_steps: 10
+
+  - name: respond
+    description: Generate an appropriate customer support response email
+    difficulty: hard
+    max_steps: 8
+
+action_space:
+  type: object
+  schema: EmailAction
+
+observation_space:
+  type: object
+  schema: EmailObservation
+
+state_space:
+  type: object
+  schema: EmailState
+
+reward_range: [0.0, 1.0]
+name: email-triage
+description: Email classification, triage, and response environment
+tasks:
+  - classify
+  - triage  
+  - respond
+port: 7860

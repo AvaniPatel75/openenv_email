@@ -1,8 +1,8 @@
 ---
-title: Openenv Email
-emoji: 📚
-colorFrom: blue
-colorTo: green
+title: Openenv Email Triage
+emoji: 📈
+colorFrom: pink
+colorTo: indigo
 sdk: docker
 pinned: false
 ---

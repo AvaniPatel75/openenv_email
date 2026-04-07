@@ -1,0 +1,8 @@
+# Generated lock snapshot (manual) for OpenEnv validator
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.10.0
+openai==1.40.0
+requests==2.32.0
+openenv-core
+pytest==8.2.0

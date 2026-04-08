@@ -44,7 +44,7 @@ state_space:
   type: object
   schema: EmailState
 
-reward_range: [0.0, 1.0]
+reward_range: (0.0, 1.0)
 name: email-triage
 description: Email classification, triage, and response environment
 tasks:

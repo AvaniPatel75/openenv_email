@@ -120,58 +120,49 @@ class EmailTriageEnv:
     def _grade_classification(self, action: EmailAction) -> float:
         score = 0.0
         gt = self.current_email
-
         if action.urgency == gt.true_urgency:
             score += 0.4
         if action.category == gt.true_category:
             score += 0.4
         if action.department == gt.true_department:
             score += 0.2
-
-        return min(score, 1.0)
+        return self._clamp(score)
 
     def _grade_triage(self, action: EmailAction) -> float:
         score = 0.0
         gt = self.current_email
-
         if action.department == gt.true_department:
             score += 0.5
-
         if action.priority:
             if action.priority == gt.true_priority:
                 score += 0.3
             elif abs(action.priority - gt.true_priority) == 1:
                 score += 0.15
-
         if action.requires_escalation == gt.requires_escalation:
             score += 0.2
-
-        return min(score, 1.0)
+        return self._clamp(score)
 
     def _grade_response(self, action: EmailAction) -> float:
         if not action.draft_reply:
-            return 0.0
-
+            return 0.01                    # ← was: return 0.0
         text = action.draft_reply.lower()
         score = 0.0
-
         if "sorry" in text or "apolog" in text:
             score += 0.2
-
         if len(text.split()) > 50:
             score += 0.2
-
         if "resolve" in text or "fix" in text:
             score += 0.2
-
         if action.requires_escalation:
             score += 0.2
-
         if "thank" in text:
             score += 0.2
+        return self._clamp(score)
 
-        return min(score, 1.0)
-
+    @staticmethod
+    def _clamp(score: float) -> float:
+        """Keep score strictly within (0, 1) — never 0.0 or 1.0."""
+        return max(0.01, min(score, 0.99))
 
     def _is_complete(self) -> bool:
         if self.task == "triage":
